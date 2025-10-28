@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -17,26 +18,36 @@ data = []
 
 # Loop through each folder
 for folder in folders:
+    print('===== %s =====' % folder)
     folder_path = os.path.join(base_dir, folder)
+    # print(np.array(os.listdir(folder_path)))
 
     # Loop through all CSV files in the folder
-    for file in os.listdir(folder_path):
+    for file in sorted(os.listdir(folder_path)):
         if file.endswith(".csv"):
+            print(file)
             file_path = os.path.join(folder_path, file)
 
             # Read CSV
             df = pd.read_csv(file_path)
+            # print(df.columns)
 
             # Make sure the expected columns exist
             if "Class" in df.columns and "AspectRatio" in df.columns:
                 # Filter for alive cells only (case-insensitive)
                 alive_df = df[df["Class"].astype(str).str.lower() == "alive"].copy()
+                # print(alive_df.columns)
+                # print(alive_df['Class'].unique())
 
                 # Add a column for the folder label
                 alive_df.loc[:, "condition"] = folder
+                # print(alive_df['condition'].unique())
 
                 # Keep only aspect ratio and condition columns
                 data.append(alive_df[["AspectRatio", "condition"]])
+
+    print('n_files:', len(data))
+    print()
 
 # Combine all data
 if data:
@@ -44,8 +55,11 @@ if data:
 else:
     raise ValueError("No data found. Please check your folder structure or column names.")
 
+print(all_data.columns)
+print(all_data['condition'].unique())
+
 # --- Violin Plot (Seaborn ≥ 0.14 compatible) ---
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(10, 6), constrained_layout=True)
 sns.violinplot(
     data=all_data,
     x="condition",
@@ -61,8 +75,7 @@ plt.title("Aspect Ratio Distributions by Condition")
 plt.xlabel("Condition")
 plt.ylabel("Aspect Ratio")
 plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+
 # -------------------------
 # Summary Statistics (Extended)
 # -------------------------
@@ -118,45 +131,70 @@ print(" - mannwhitney_bone_results.csv")
 #  NEW SECTION: BAR PLOTS FOR SUMMARY STATISTICS
 # =====================================================
 
-sns.set(style="whitegrid")
+sns.set_theme(style="whitegrid")
 
 # Mean & Median Plot with Errors Bars (±SD on Mean)
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(10, 6), constrained_layout=True)
+
+print(summary.columns)
 
 # Mean barplot with SD error bars
-ax = sns.barplot(
-    data=summary,
-    x="condition",
-    y="mean",
-    color="skyblue",
-    label="Mean(±SD)",
-    errorbar=("sd"), #It plots the  SD error bars
-    capsize=0.2
+
+# summary has columns: condition, mean, median, std, count, skew
+long = summary.melt(
+    id_vars="condition",
+    value_vars=["mean", "median"],
+    var_name="stat",
+    value_name="value"
 )
+
+ax = sns.barplot(
+    data=long,
+    x="condition",
+    y="value",
+    hue="stat",
+    dodge=True,
+    estimator=np.mean,
+    errorbar=None   # we already have summary stats
+)
+
+# ax = sns.barplot(
+#     data=summary,
+#     x="condition",
+#     y="mean",
+#     dodge=True,
+#     color="skyblue",
+#     label="Mean (±SD)",
+#     errorbar="sd", #It plots the  SD error bars
+#     capsize=0.2
+# )
 
 # Overlay median values as orange points
-plt.scatter(
-    x=range(len(summary)),
-    y=summary["median"],
-    color="orange",
-    s=100,
-    zorder=3,
-    label="Median"
-)
+# plt.scatter(
+#     x=range(len(summary)),
+#     y=summary["median"],
+#     color="orange",
+#     s=100,
+#     zorder=3,
+#     label="Median"
+# )
 
 # Add text labels for mean ± SD (Optional)
-for i, row in summary.iterrows():
-    plt.text(i, row["mean"] + row["std"] + 0.05,f"{row['mean']:.2f}]± {row['std']:.2f}",ha='center', va='bottom', fontsize=8, color="black")
+# for i, row in summary.iterrows():
+#     plt.text(i, row["mean"] + row["std"] + 0.05,f"{row['mean']:.2f}]± {row['std']:.2f}",ha='center', va='bottom',
+#              fontsize=8, color="black")
 
 # Aesthetics
-plt.title("Mean (±SD)and Median Aspect Ratio per Condition", fontsize=14, weight="bold")
+plt.title("Mean (±SD) and Median Aspect Ratio per Condition", fontsize=14, weight="bold")
 plt.xlabel("Condition", fontsize=12)
 plt.ylabel("Aspect Ratio", fontsize=12)
 plt.xticks(rotation=45)
 plt.legend(title="Statistic")
-plt.tight_layout()
 plt.savefig("aspect_ratio_mean_median_barplot.png", dpi=300)
+
 plt.show()
+
+quit()
 
 # 2️Standard Deviation Bar Plot
 plt.figure(figsize=(10, 6))
@@ -176,7 +214,6 @@ plt.ylabel("Standard Deviation", fontsize=12)
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.savefig("aspect_ratio_std_barplot.png", dpi=300)
-plt.show()
 
 # Skewness Plot
 plt.figure(figsize=(10,6))
@@ -196,4 +233,5 @@ plt.axhline(0, color="black", linewidth=1)
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.savefig("aspect_ratio_skew_barplot.png", dpi=300)
+
 plt.show()
