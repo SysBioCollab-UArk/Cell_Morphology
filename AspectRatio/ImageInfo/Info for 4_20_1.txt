@@ -1,0 +1,23 @@
+ImageDescription: <LMSIOManager><ProductVersion>1,2,2207,0</ProductVersion><BitShift>UnProcessed</BitShift></LMSIOManager>
+--------------------------------------------
+(Fiji Is Just) ImageJ 2.16.0/1.54p; Java 1.8.0_322 [64-bit]; Mac OS X 10.16; 368MB of 6315MB (5%)
+ 
+Title: 4_20_1.tif
+Width:  694.2871 µm (1296)
+Height:  517.5010 µm (966)
+Size:  2.4MB
+Resolution:  1.8667 pixels per µm
+Pixel size: 0.5357x0.5357 µm^2
+ID: -21
+Bits per pixel: 16 (unsigned, grayscale LUT)
+Display range: 1807-65535
+Pixel value range: 1807-65535
+No threshold
+ScaleToFit: false
+Uncalibrated
+Path: /Users/alexandravega/PycharmProjects/Cell_Morphology/AspectRatio/4_20_1.tif
+Screen location: 42,102 (1728x1117)
+SetMenuBarCount: 42 (277ms)
+No properties
+No overlay
+No selection
