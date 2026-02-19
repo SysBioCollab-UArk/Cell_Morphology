@@ -1,8 +1,13 @@
+%Filename: Cell_Image_Code_Morphology.m
+
 % this is where I am going to input filenames to get images
-filename = '1_20x.jpg';
+%filename = '1_20_1.jpg';
+cell_image = imread('1_20_1.tif');
+%imwrite(img, '1_20_1.jpg');
+%filename = '1_20_1.jpg';
 
 % function calls below
-cell_image = Import_Image(filename);
+%cell_image = Import_Image(filename);
 cell_image = single(cell_image);
 cell_image_gray = Convert_to_Grayscale(cell_image);
 
@@ -45,6 +50,11 @@ function Detect_Cells_Watershed(cell_image_gray)
     % Step 6: Remove watershed ridges
     BW_watershed = BW;
     BW_watershed(L == 0) = 0;
+
+    % Calculate density
+    cell_positive_density = sum(logical(BW_watershed(:))) ./ numel(BW_watershed);
+    fprintf('Cell-positive density: %.4f\n', cell_positive_density);
+
 
     % Step 7: Region properties
     stats = regionprops(BW_watershed, 'Centroid', 'Area', ...

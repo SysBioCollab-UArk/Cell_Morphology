@@ -217,7 +217,7 @@ plt.savefig("aspect_ratio_std_barplot.png", dpi=300)
 
 # Skewness Plot
 plt.figure(figsize=(10,6))
-sns.barplot(
+sns.barplot(9,
     data=summary,
     x="condition",
     y="skew",
