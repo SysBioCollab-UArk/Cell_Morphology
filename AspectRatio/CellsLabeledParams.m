@@ -7,8 +7,8 @@ clear, clc, close all
 
 % ------------------ Step 1: Set main folder ------------------
 %mainfolder = '/Users/alexandravega/Library/CloudStorage/Box-Box/UArk Sys Bio Collab/Projects/TIBD/qPCR/JUNE_JULY_2025/2025_07_10_09_52_25--24_Hrs_07_10_2025_ALL/1_second';
-main_folder = '/Users/alexandravega/PycharmProjects/Cell_Morphology/AspectRatio';
-%main_folder = '/Users/alexandravega/Library/CloudStorage/Box-Box/UArk Sys Bio Collab/Projects/TIBD/qPCR/JUNE_JULY_2025/2025_07_10_09_52_25--24_Hrs_07_10_2025_ALL/June_July_Biorep2';
+%main_folder = '/Users/alexandravega/PycharmProjects/Cell_Morphology/AspectRatio';
+main_folder = '/Users/alexandravega/Library/CloudStorage/Box-Box/UArk Sys Bio Collab/Projects/TIBD/qPCR/JUNE_JULY_2025/2025_07_10_09_52_25--24_Hrs_07_10_2025_ALL/June_July_Biorep2';
 %main_folder = '/Users/alexandravega/Library/CloudStorage/Box-Box/UArk Sys Bio Collab/Projects/TIBD/qPCR/MAY 2025/05_23_2025/MayImages_20x';
 % ------------------ Step 2: Get all TIF images ------------------
 tif_files = dir(fullfile(main_folder, '*.tif'));
