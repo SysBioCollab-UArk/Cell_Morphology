@@ -10,7 +10,7 @@ cp = cellpose(model="cyto2");
 allAngles = []; 
 
 % ------------------ Step 2: Nested Cluster Loop (Batch of 5x5) ------------------
-for group = 1:5
+for group = 8:9
     for imgNum = 1:5
         fileName = sprintf('%d_%d.tif', group, imgNum);
         fullPath = fullfile(main_folder, fileName);
@@ -44,7 +44,7 @@ for group = 1:5
             props(i).AspectRatio = props(i).MajorAxisLength / props(i).MinorAxisLength;
             
             % Apply the Isolation Thresholds
-            if props(i).AspectRatio > 1.1 && props(i).Circularity < 0.98
+            if props(i).AspectRatio > 1.5 && props(i).Circularity < 0.6
                 props(i).Class = 'Elongated_Bone_Clone';
                 allAngles = [allAngles; deg2rad(props(i).Orientation)];
             elseif props(i).AspectRatio > 1.1
