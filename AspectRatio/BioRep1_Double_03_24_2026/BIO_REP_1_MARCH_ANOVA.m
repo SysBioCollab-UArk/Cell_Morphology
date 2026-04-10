@@ -80,3 +80,22 @@ if ~isempty(allAnalysisData)
 else
     disp('Check failed: No viable cells were found in the images.');
 end
+% ------------------ Step 4: Advanced Visualization ------------------
+figure('Color', 'w', 'Name', 'Cell Morphology Distribution');
+
+% Create a boxchart grouped by Condition and colored by CellLine
+bn = boxchart(allAnalysisData.Condition, allAnalysisData.AspectRatio, ...
+    'GroupByColor', allAnalysisData.CellLine);
+
+% Make it look professional
+bn(1).SeriesIndex = 1; % Color for Bone Clone
+bn(2).SeriesIndex = 2; % Color for Parental
+
+grid on
+ylabel('Aspect Ratio (Length/Width)');
+xlabel('Scaffold Condition');
+title('Distribution of Cell Elongation across BioRep1');
+legend('Location', 'northeastoutside');
+
+% Optional: Set Y-axis limits to focus on the bulk of the data
+ylim([1, 4]);
