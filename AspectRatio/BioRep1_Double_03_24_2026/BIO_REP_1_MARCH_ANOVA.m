@@ -3,11 +3,13 @@ clear, clc, close all
 
 % ------------------ Step 1: Configuration ------------------
 % The single folder containing everything (Images + Excel)
-mainFolder = '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio/BioRep1_Double_03_24_2026';
+%mainFolder = '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio/BioRep1_Double_03_24_2026';
+mainFolder = '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio/2026_04_09_10_38_48--BioRep2_Double_Cells_04_09_2026_Final';
+
 
 % Load the Sample ID file
-metaData = readtable(fullfile(mainFolder, 'SampleID.xlsx'));
-
+%metaData = readtable(fullfile(mainFolder, 'SampleID.xlsx'));
+metaData = readtable(fullfile(mainFolder, 'ID_Samples_BioRep2_Double'));
 % Initialize Cellpose and Results Table
 cp = cellpose(model="cyto2");
 allAnalysisData = table(); 

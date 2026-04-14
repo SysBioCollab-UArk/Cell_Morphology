@@ -40,7 +40,7 @@ import seaborn as sns
 # ═══════════════════════════════════════════════════════════════
 CSV_PATH   = (
     '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio'
-    '/BioRep1_Double_03_24_2026/BioRep1_Final_Results.csv'
+    '/2026_04_09_10_38_48--BioRep2_Double_Cells_04_09_2026_Final/BioRep2_Final_Results.csv'
 )
 COND_ORDER = ['TC', 'Random', 'Aligned']
 
