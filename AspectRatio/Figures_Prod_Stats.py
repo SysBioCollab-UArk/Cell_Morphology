@@ -119,7 +119,7 @@ def fig_biorep1_large_stars(df):
         sig_bracket(ax_chart, bar_centers[i][0], bar_centers[i][2], h2, p=0.001, bracket_color=color)
 
     # --- Styling & Title ---
-    ax_chart.set_title("BioRep2", fontweight='bold', fontsize=14, pad=29)
+    ax_chart.set_title("BioRep1", fontweight='bold', fontsize=14, pad=29)
     ax_chart.set_ylim(0, 3.2)  # Lowered for SEM
     ax_chart.set_xticks(x)
     ax_chart.set_xticklabels(COND_ORDER, fontweight='bold')
