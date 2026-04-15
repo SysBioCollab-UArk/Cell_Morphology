@@ -13,8 +13,9 @@ import matplotlib.pyplot as plt
 # ═══════════════════════════════════════════════════════════════
 CSV_PATH = (
     '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio'
-    '/2026_04_09_10_38_48--BioRep2_Double_Cells_04_09_2026_Final/BioRep2_Final_Results.csv'
-)
+    #'/2026_04_09_10_38_48--BioRep2_Double_Cells_04_09_2026_Final/BioRep2_Final_Results.csv'  #BioRep 2
+    '/BioRep1_Double_03_24_2026/BioRep1_Final_Results.csv')    #BioRep 1
+
 COND_ORDER = ['TC', 'Random', 'Aligned']
 
 # Colors: Bone Clone = Dark Blue, Parental = Forest Green
@@ -65,46 +66,64 @@ def fig_biorep1_large_stars(df):
 
     ax_chart = fig.add_subplot(gs[0])
 
+    # Get unique cell lines and sort them
     cl_names = sorted(df['CellLine'].unique(), reverse=True)
 
-    means_dict, sds_dict = {}, {}
+    # Check if we have data to plot
+    if len(cl_names) == 0:
+        print("Error: No CellLines found in the CSV!")
+        return
+
+    means_dict, sems_dict = {}, {}
     for cl in cl_names:
-        m_list, sd_list = [], []
+        m_list, sem_list = [], []
         for cond in COND_ORDER:
             group = df[(df['CellLine'] == cl) & (df['Condition'] == cond)]['AspectRatio']
             m_list.append(group.mean() if not group.empty else 0)
-            sd_list.append(group.std() if len(group) > 1 else 0)
+            # Standard Error Calculation
+            sem_list.append(group.sem() if len(group) > 1 else 0)
         means_dict[cl] = m_list
-        sds_dict[cl] = sd_list
+        sems_dict[cl] = sem_list
 
     x = np.arange(len(COND_ORDER))
     width = 0.35
     bar_centers = []
 
-    # --- Plot Bars + SD ---
+    # --- Plot Bars + SEM ---
     for i, cl in enumerate(cl_names):
+        # SAFE COLOR CHECK: Prevents index out of range
+        color = PAL[i] if i < len(PAL) else '#808080'  # Defaults to grey if extra line found
+
         offset = (i - (len(cl_names) - 1) / 2) * (width + 0.04)
         curr_x = x + offset
         bar_centers.append(curr_x)
-        ax_chart.bar(curr_x, means_dict[cl], width, label=cl, color=PAL[i],
+
+        ax_chart.bar(curr_x, means_dict[cl], width, label=cl, color=color,
                      edgecolor='black', linewidth=0.8, zorder=3)
-        ax_chart.errorbar(curr_x, means_dict[cl], yerr=sds_dict[cl],
+
+        ax_chart.errorbar(curr_x, means_dict[cl], yerr=sems_dict[cl],
                           fmt='none', ecolor='black', capsize=4, elinewidth=1.2, zorder=4)
 
     # --- Significance Brackets ---
     for i, cl in enumerate(cl_names):
-        local_max = max([means_dict[cl][j] + sds_dict[cl][j] for j in range(len(COND_ORDER))])
-        h1 = local_max + 0.20
-        sig_bracket(ax_chart, bar_centers[i][0], bar_centers[i][1], h1, p=0.01, bracket_color=PAL[i])
-        h2 = h1 + 0.45
-        sig_bracket(ax_chart, bar_centers[i][0], bar_centers[i][2], h2, p=0.001, bracket_color=PAL[i])
+        # Again, use safe color
+        color = PAL[i] if i < len(PAL) else '#808080'
+
+        # Ensure we use sems_dict here
+        local_max = max([means_dict[cl][j] + sems_dict[cl][j] for j in range(len(COND_ORDER))])
+
+        h1 = local_max + 0.15  # Lower height for SEM
+        sig_bracket(ax_chart, bar_centers[i][0], bar_centers[i][1], h1, p=0.01, bracket_color=color)
+
+        h2 = h1 + 0.35
+        sig_bracket(ax_chart, bar_centers[i][0], bar_centers[i][2], h2, p=0.001, bracket_color=color)
 
     # --- Styling & Title ---
-    ax_chart.set_title("BioRep2", fontweight='bold', fontsize=14, pad=20)
-    ax_chart.set_ylim(0, 3.8)  # Adjusted for larger stars
+    ax_chart.set_title("BioRep2", fontweight='bold', fontsize=14, pad=29)
+    ax_chart.set_ylim(0, 3.2)  # Lowered for SEM
     ax_chart.set_xticks(x)
     ax_chart.set_xticklabels(COND_ORDER, fontweight='bold')
-    ax_chart.set_ylabel('Mean Aspect Ratio ± SD', fontweight='bold')
+    ax_chart.set_ylabel('Mean Aspect Ratio ± SEM', fontweight='bold')
     ax_chart.spines['top'].set_visible(False)
     ax_chart.spines['right'].set_visible(False)
 
@@ -112,23 +131,18 @@ def fig_biorep1_large_stars(df):
     ax_key = fig.add_subplot(gs[1])
     ax_key.axis('off')
 
-    # 1. Legend for Cell Lines
     handles, labels = ax_chart.get_legend_handles_labels()
     ax_key.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.7),
                   ncol=2, frameon=False, title="Cell Line", title_fontproperties={'weight': 'bold'})
 
-    # 2. Cleaned P-Value Definitions
     p_title = "Significance Definitions"
     p_text = "**** p ≤ 5e-05   |   *** p ≤ 5e-04   |   ** p ≤ 5e-03   |   * p ≤ 5e-02   |   ns p > 0.05"
 
-    ax_key.text(0.5, 0.9, p_title, transform=ax_key.transAxes,
-                ha='center', fontsize=10, fontweight='bold')
-    ax_key.text(0.5, 0.7, p_text, transform=ax_key.transAxes,
-                ha='center', fontsize=9, fontweight='normal')
+    ax_key.text(0.5, 0.9, p_title, transform=ax_key.transAxes, ha='center', fontsize=10, fontweight='bold')
+    ax_key.text(0.5, 0.7, p_text, transform=ax_key.transAxes, ha='center', fontsize=9, fontweight='normal')
 
     fig.subplots_adjust(bottom=0.1, top=0.9)
     plt.show(block=True)
-
 
 if __name__ == "__main__":
     try:
