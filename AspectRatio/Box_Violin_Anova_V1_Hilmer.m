@@ -1,4 +1,4 @@
-%% TIBD Automated Batch Processing - Cell-Level Six-Group Analysis
+%% TIBD Automated Batch Processing - Cell-Level Six Group Analysis
 clear; clc; close all;
 
 % ------------------ Step 1: Configuration ------------------
