@@ -40,7 +40,7 @@ import seaborn as sns
 # ═══════════════════════════════════════════════════════════════
 CSV_PATH   = (
     '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio'
-    '/BioRep1_Double_03_24_2026/BioRep1_Final_Results.csv'
+    '/BioRep1_Double_03_24_2026/BioRep1_Full_Unfiltered_Results.csv'
 )
 COND_ORDER = ['TC', 'Random', 'Aligned']
 
@@ -689,6 +689,7 @@ def fig_boxplots(df, R):
             flierprops   =dict(marker='o', ms=2.5, alpha=0.3,
                                markerfacecolor=PAL[i], markeredgecolor='none'),
             boxprops     =dict(linewidth=0),
+            showfliers=False
         )
         for patch in bp['boxes']:
             patch.set_facecolor(PAL[i]); patch.set_alpha(0.78)
@@ -733,6 +734,7 @@ def fig_violins(df, R):
         ax.set_xlabel('Condition', fontsize=8)
         ax.set_ylabel('Aspect Ratio', fontsize=8) if i==0 else None
         clean_ax(ax)
+        ax.set_ylim(top=5)
 
     fig.tight_layout(rect=[0,0,1,0.94])
     plt.show()
