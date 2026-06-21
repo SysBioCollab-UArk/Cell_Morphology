@@ -3,12 +3,15 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import warnings
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # =========================================================
-# 1. Data Setup & Outlier Filtering
+# 1. Data Setup & Global Definitions
 # =========================================================
 file_path = '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio/BioRep1_Double_03_24_2026/BioRep1_CellData.xlsx'
 df = pd.read_excel(file_path)
@@ -18,172 +21,92 @@ df['CellLine'] = df['Group'].apply(lambda x: x.split('-')[0])
 df['Condition'] = df['Group'].apply(lambda x: x.split('-')[1])
 
 env_order = ['TC', 'Random', 'Aligned']
-
-
-def filter_outliers_and_track(data):
-    """Filters outliers using the IQR method per group and tracks dropped cells."""
-    clean_list = []
-    outlier_list = []
-
-    # Calculate IQR bounds independently for EVERY group
-    for group_name, group_df in data.groupby('Group'):
-        Q1 = group_df['LogAspectRatio'].quantile(0.25)
-        Q3 = group_df['LogAspectRatio'].quantile(0.75)
-        IQR = Q3 - Q1
-
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-
-        # Mask for outliers
-        is_outlier = (group_df['LogAspectRatio'] < lower_bound) | (group_df['LogAspectRatio'] > upper_bound)
-
-        clean_list.append(group_df[~is_outlier])
-        outlier_list.append(group_df[is_outlier])
-
-    df_clean = pd.concat(clean_list)
-    df_outliers = pd.concat(outlier_list)
-    return df_clean, df_outliers
-
-
-# Apply the filter
-df_clean, df_outliers = filter_outliers_and_track(df)
-
-# Export the dropped cells so you can inspect them later
-outlier_export_path = '/Users/hilmerdiaz/PycharmProjects/Cell_Morphology/AspectRatio/Excluded_Outlier_Cells.csv'
-df_outliers.to_csv(outlier_export_path, index=False)
-print(f"Successfully removed {len(df_outliers)} outlier cells.")
-print(f"List of excluded cells saved to: {outlier_export_path}")
-
+line_order = ['Parental', 'Bone Clone']
 
 # =========================================================
-# 2. Statistical & Annotation Helpers (Using df_clean)
+# 2. Automated Statistical Engine
 # =========================================================
-def get_stats(data1, data2, label1, label2):
-    m1, v1 = np.mean(data1), np.var(data1, ddof=1)
-    m2, v2 = np.mean(data2), np.var(data2, ddof=1)
+def get_env_stats(cell_line, env1, env2):
+    a = df[(df['CellLine'] == cell_line) & (df['Condition'] == env1)]['LogAspectRatio'].dropna()
+    b = df[(df['CellLine'] == cell_line) & (df['Condition'] == env2)]['LogAspectRatio'].dropna()
 
-    _, p_welch = stats.ttest_ind(data1, data2, equal_var=False)
-    _, p_lev = stats.levene(data1, data2)
-    _, p_ks = stats.ks_2samp(data1, data2)
+    label = f"{cell_line}: {env1} vs {env2}"
+    if len(a) < 2 or len(b) < 2: return [label] + ["NaN"] * 4
 
-    stars = "***" if p_welch < 0.001 else "**" if p_welch < 0.01 else "*" if p_welch < 0.05 else "ns"
+    _, p_welch = stats.ttest_ind(a, b, equal_var=False)
+    nx, ny = len(a), len(b)
+    d_val = (np.mean(a) - np.mean(b)) / np.sqrt(((nx - 1) * np.var(a) + (ny - 1) * np.var(b)) / (nx + ny - 2))
+    _, p_lev = stats.levene(a, b)
+    _, _, p_ad = stats.anderson_ksamp([a, b])
 
-    row = [f"{label1} vs {label2}", f"{m1:.3f}", f"{v1:.3f}", f"{m2:.3f}", f"{v2:.3f}",
-           f"{p_welch:.2e}", f"{p_lev:.2e}", f"{p_ks:.3f}"]
-    return row, stars
+    return [label, f"{p_welch:.2e}", f"{d_val:.2f}", f"{p_lev:.2e}", f"{p_ad:.3f}"]
 
+# Automatically generate all 6 environmental comparisons
+stats_rows = []
+comparisons = [("TC", "Random"), ("Random", "Aligned"), ("TC", "Aligned")]
 
-def draw_bracket(ax, x1, x2, y, h, text):
-    ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], lw=1.5, c='black')
-    ax.text((x1 + x2) * 0.5, y + h + 0.05, text, ha='center', va='bottom', color='black', fontweight='bold')
-
-
-headers = ["Comparison", "Mean 1", "Var 1", "Mean 2", "Var 2", "Welch (p)", "Levene (p)", "KS (p)"]
-
-# Set plot ceiling based on the CLEAN data
-y_max_global = df_clean['LogAspectRatio'].max()
-bracket_h = 0.08
+for line in line_order:
+    for env1, env2 in comparisons:
+        stats_rows.append(get_env_stats(line, env1, env2))
 
 # =========================================================
-# Image 1: Parental Line Only
+# 3. Two-Way ANOVA & Tukey HSD
 # =========================================================
-fig1 = plt.figure(figsize=(14, 12))
-gs1 = fig1.add_gridspec(2, 1, height_ratios=[2, 1])
+# Proves if the environment affects Bone Clone differently than Parental
+model = ols('LogAspectRatio ~ C(Condition) * C(CellLine)', data=df).fit()
+anova_results = sm.stats.anova_lm(model, typ=2)
 
-df_par = df_clean[df_clean['CellLine'] == 'Parental']
-tc_par = df_par[df_par['Condition'] == 'TC']['LogAspectRatio'].dropna()
-rd_par = df_par[df_par['Condition'] == 'Random']['LogAspectRatio'].dropna()
-al_par = df_par[df_par['Condition'] == 'Aligned']['LogAspectRatio'].dropna()
-
-stats_par = []
-row, s1 = get_stats(tc_par, rd_par, "TC", "Random")
-stats_par.append(row)
-row, s2 = get_stats(rd_par, al_par, "Random", "Aligned")
-stats_par.append(row)
-row, s3 = get_stats(tc_par, al_par, "TC", "Aligned")
-stats_par.append(row)
-
-ax1 = fig1.add_subplot(gs1[0])
-sns.boxenplot(data=df_par, x='Condition', y='LogAspectRatio', order=env_order,
-              hue='Condition', palette='crest', legend=False, ax=ax1)
-
-draw_bracket(ax1, 0, 1, y_max_global + 0.1, bracket_h, s1)
-draw_bracket(ax1, 1, 2, y_max_global + 0.35, bracket_h, s2)
-draw_bracket(ax1, 0, 2, y_max_global + 0.6, bracket_h, s3)
-ax1.set_ylim(bottom=-0.2, top=y_max_global + 0.9)
-ax1.set_title('Parental Line: Bulk Population Response (Outliers Removed)', fontweight='bold', fontsize=14)
-
-ax1_tab = fig1.add_subplot(gs1[1])
-ax1_tab.axis('off')
-table1 = ax1_tab.table(cellText=stats_par, colLabels=headers, loc='center', cellLoc='center')
-table1.scale(1, 2)
-fig1.tight_layout()
+# Tukey HSD for all groups
+df['Combined'] = df['CellLine'] + "_" + df['Condition']
+tukey = pairwise_tukeyhsd(endog=df['LogAspectRatio'], groups=df['Combined'], alpha=0.05)
 
 # =========================================================
-# Image 2: Bone Clone Line Only
+# 4. Sensitivity Gain Calculation
 # =========================================================
-fig2 = plt.figure(figsize=(14, 12))
-gs2 = fig2.add_gridspec(2, 1, height_ratios=[2, 1])
+def calculate_d(line, e1, e2):
+    g1 = df[(df['CellLine'] == line) & (df['Condition'] == e1)]['LogAspectRatio']
+    g2 = df[(df['CellLine'] == line) & (df['Condition'] == e2)]['LogAspectRatio']
+    return abs((np.mean(g1) - np.mean(g2)) / np.sqrt((np.var(g1) + np.var(g2)) / 2))
 
-df_bc = df_clean[df_clean['CellLine'] == 'Bone Clone']
-tc_bc = df_bc[df_bc['Condition'] == 'TC']['LogAspectRatio'].dropna()
-rd_bc = df_bc[df_bc['Condition'] == 'Random']['LogAspectRatio'].dropna()
-al_bc = df_bc[df_bc['Condition'] == 'Aligned']['LogAspectRatio'].dropna()
+d_bc = calculate_d('Bone Clone', 'TC', 'Aligned')
+d_par = calculate_d('Parental', 'TC', 'Aligned')
+sensitivity_gain = d_bc - d_par
 
-stats_bc = []
-row, s1 = get_stats(tc_bc, rd_bc, "TC", "Random")
-stats_bc.append(row)
-row, s2 = get_stats(rd_bc, al_bc, "Random", "Aligned")
-stats_bc.append(row)
-row, s3 = get_stats(tc_bc, al_bc, "TC", "Aligned")
-stats_bc.append(row)
-
-ax2 = fig2.add_subplot(gs2[0])
-sns.boxenplot(data=df_bc, x='Condition', y='LogAspectRatio', order=env_order,
-              hue='Condition', palette='flare', legend=False, ax=ax2)
-
-draw_bracket(ax2, 0, 1, y_max_global + 0.1, bracket_h, s1)
-draw_bracket(ax2, 1, 2, y_max_global + 0.35, bracket_h, s2)
-draw_bracket(ax2, 0, 2, y_max_global + 0.6, bracket_h, s3)
-ax2.set_ylim(bottom=-0.2, top=y_max_global + 0.9)
-ax2.set_title('Bone Clone Line: Bulk Population Response (Outliers Removed)', fontweight='bold', fontsize=14)
-
-ax2_tab = fig2.add_subplot(gs2[1])
-ax2_tab.axis('off')
-table2 = ax2_tab.table(cellText=stats_bc, colLabels=headers, loc='center', cellLoc='center')
-table2.scale(1, 2)
-fig2.tight_layout()
-
+# ================= ========================================
+# 5. Visualization Suite
 # =========================================================
-# Image 3: Cross-Line Comparison (Same Scaffold Types)
-# =========================================================
-fig3 = plt.figure(figsize=(14, 12))
-gs3 = fig3.add_gridspec(2, 1, height_ratios=[2, 1])
+fig = plt.figure(figsize=(20, 14))
+gs = fig.add_gridspec(3, 2)
 
-stats_cross = []
-row, s_tc = get_stats(tc_par, tc_bc, "Par|TC", "BC|TC")
-stats_cross.append(row)
-row, s_rd = get_stats(rd_par, rd_bc, "Par|Random", "BC|Random")
-stats_cross.append(row)
-row, s_al = get_stats(al_par, al_bc, "Par|Aligned", "BC|Aligned")
-stats_cross.append(row)
+# A. Boxenplot
+ax1 = fig.add_subplot(gs[0, 0])
+sns.boxenplot(data=df, x='Condition', y='LogAspectRatio', hue='CellLine',
+              order=env_order, palette='viridis', ax=ax1)
+ax1.set_title('A. Environmental Response Spread', fontweight='bold')
 
-ax3 = fig3.add_subplot(gs3[0])
-sns.boxenplot(data=df_clean, x='Condition', y='LogAspectRatio', hue='CellLine',
-              order=env_order, palette='viridis', ax=ax3)
+# B. Sensitivity Gain Chart
+ax2 = fig.add_subplot(gs[0, 1])
+sns.barplot(x=['Parental', 'Bone Clone'], y=[d_par, d_bc], palette='viridis', ax=ax2)
+ax2.set_title(f'B. Topographic Sensitivity (Gain: {sensitivity_gain:.2f})', fontweight='bold')
+ax2.set_ylabel("Cohen's d (TC to Aligned)")
 
-draw_bracket(ax3, -0.2, 0.2, y_max_global + 0.1, bracket_h, s_tc)
-draw_bracket(ax3, 0.8, 1.2, y_max_global + 0.1, bracket_h, s_rd)
-draw_bracket(ax3, 1.8, 2.2, y_max_global + 0.1, bracket_h, s_al)
-ax3.set_ylim(bottom=-0.2, top=y_max_global + 0.4)
-ax3.set_title('Direct Comparison: Parental vs Bone Clone by Scaffold (Outliers Removed)', fontweight='bold',
-              fontsize=14)
-ax3.legend(loc='upper left')
+# C. Stats Table (Now with 6 rows)
+ax3 = fig.add_subplot(gs[1, :])
+ax3.axis('off')
+headers = ["Comparison", "Welch (p)", "Cohen's d", "Levene (p)", "Anderson-Darling (p)"]
+table = ax3.table(cellText=stats_rows, colLabels=headers, loc='center', cellLoc='center')
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.scale(1, 1.8)
 
-ax3_tab = fig3.add_subplot(gs3[1])
-ax3_tab.axis('off')
-table3 = ax3_tab.table(cellText=stats_cross, colLabels=headers, loc='center', cellLoc='center')
-table3.scale(1, 2)
-fig3.tight_layout()
+# D. ANOVA Results Output
+ax4 = fig.add_subplot(gs[2, :])
+ax4.axis('off')
+anova_text = f"Two-Way ANOVA Interaction P-Value: {anova_results.loc['C(Condition):C(CellLine)', 'PR(>F)']:.2e}"
+ax4.text(0.5, 0.5, anova_text, size=14, ha='center', weight='bold', bbox=dict(facecolor='none', edgecolor='black'))
 
+plt.suptitle('Mechanobiological Response: Parental vs. Bone Clone', fontsize=18, fontweight='bold')
+plt.tight_layout()
 plt.show()
+
+
